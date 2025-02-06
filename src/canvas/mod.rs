@@ -2,7 +2,7 @@ use bytemuck::{cast_slice, Pod, Zeroable};
 use cgmath::{perspective, Deg, Matrix4, Point3, Quaternion, Rotation, Rotation3, SquareMatrix, Vector3};
 use icosphere::Icosphere;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{include_wgsl, vertex_attr_array, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, Extent3d, FragmentState, FrontFace, IndexFormat, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages, StencilState, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, VertexBufferLayout, VertexState, VertexStepMode};
+use wgpu::{include_wgsl, vertex_attr_array, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages, Color, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, Extent3d, FragmentState, FrontFace, IndexFormat, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderStages, StencilState, StoreOp, SurfaceConfiguration, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, VertexBufferLayout, VertexState, VertexStepMode};
 use wgpu::{Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Surface, WindowHandle};
 use winit::dpi::PhysicalSize;
 
@@ -45,11 +45,17 @@ struct Camera {
 
 impl Canvas {
     pub(super) async fn new(window: impl WindowHandle + 'static, size: PhysicalSize<u32>) -> Canvas {
-        #[cfg(not(target_os = "windows"))]
-        let instance = Instance::new(Default::default());
+        #[cfg(target_arch = "wasm32")]
+        let instance = Instance::new(&InstanceDescriptor {
+            backends: Backends::GL,
+            ..Default::default()
+        });
+
+        #[cfg(all(not(target_os = "windows"), not(target_arch = "wasm32")))]
+        let instance = Instance::new(&Default::default());
 
         #[cfg(target_os = "windows")]
-        let instance = Instance::new(InstanceDescriptor {
+        let instance = Instance::new(&InstanceDescriptor {
             backends: Backends::DX12,
             ..Default::default()
         });
@@ -66,7 +72,7 @@ impl Canvas {
             label: None,
             memory_hints: MemoryHints::Performance,
             required_features: Default::default(),
-            required_limits: Default::default()
+            required_limits: Limits::downlevel_webgl2_defaults()
         }, None).await.unwrap();
 
         let config = surface.get_default_config(&adapter, size.width.max(1), size.height.max(1)).unwrap();
